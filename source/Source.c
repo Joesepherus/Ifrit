@@ -1,64 +1,107 @@
 #include <stdio.h>
 
-typedef struct header
-{
-	//unsigned short free;
-	unsigned int size;
-	struct header *prev, *next;
-}HEADER;
+char *global[50000];
 
-void *global;
+void *memory_alloc(unsigned short size) {
 
-#define HEAD 4
-
-void memory_init(void *ptr, unsigned int size) {
-	// pointer first dame na zaciatok ale posunieme ho o int doprava, lebo na prvych 4B bude size pridelenej pamate
-	HEADER *first = (HEADER *)((int *)ptr + 1);
-
-	unsigned int *heap_size = (unsigned int*)ptr;
-	*heap_size = size - HEAD - sizeof(unsigned int);
-	global = ptr;
-
-	//first->free = 1;
-	first->size = 8;
-}
-
-void memory_alloc(unsigned int size) {
 	if (size <= 0) 
 		return -1;
 
-	HEADER *curr = (HEADER *)((unsigned int *)global + 1);
-	void *result; 
+	void *next;
 
-	while (curr->size < size) {
-		curr = curr + curr->size + sizeof(HEADER); //jumping to the next free block
-		printf("One block checked\n");
+	int *curr = (char*)global + 2; // adress to the first free block 
+	printf("\nwtff %p %p\n", global, curr);
+	unsigned short free_block = *((int*)curr); // save the location of the free_block
+	printf("freeblock=%hu", free_block); 
+	curr = (char*)global + 2 + free_block; // go to the first free block
+	//printf("lol%p", curr);
+
+	unsigned short block_size = *((int*)curr); // save the free blocks size
+	int *nextFree = ((char*)curr) + 2; // save the position of the next free block
+	printf("nextFree = %p %p", *nextFree, ((char*)curr + 2));
+
+	// loop until you find a suitable free block
+	while (block_size < size || *nextFree != 0) {
+		(void*)curr = *nextFree; // get to the position of the next free block
+		block_size = *curr; // get the next free blocks size
+		printf("\nkurvaa %p %d %d\n", curr, *curr, block_size);
+
+		nextFree = ((char*)curr) + 2; // save the position of the next free block
+		printf("\nCHECKED\n");
 	}
-	if (curr->size == size) {
-		result = (void*)(curr) + curr->size + sizeof(HEADER);
-
+	
+	if (block_size == size) {
 		// unlink the block from free blocks
-		curr->prev->next = curr->next;
+		(void*)curr = (char*)curr + (unsigned short)curr; 
+		(void*)nextFree = curr;
+		(void*)curr = (char*)curr + (unsigned short)curr;
+		(unsigned short)curr = NULL; //set next as NULL
+		//curr->prev->next = curr->next;
 
-		printf("curr = %d   ++curr = %d \n", (void*)(curr), (void*)(curr)+curr->size + sizeof(HEADER));
+		// printf("curr = %d   ++curr = %d \n", (void*)(curr), (void*)(curr)+curr->size + sizeof(HEADER));
 		printf("Exact fitting block allocated.");
 	}
-	else if (curr->size > size + sizeof(HEADER)) {
-		split(curr, size);
-		result = (void*)(curr)+curr->size + sizeof(HEADER);
-		printf("Fitting block allocated with a split\n");
+
+	else if (block_size > size) {
+		// split(curr, size);
+		// result = (void*)(curr)+curr->size + sizeof(HEADER);
+		// curr->prev->next = curr->next;
+
+		printf("found a free block with size: %hu\n", block_size);
 	}
-	else {
-		result = NULL;
+
+	/*else (block_size < size) {
+		curr = NULL;
 		print("Sorry. No sufficient memory to allocate\n");
-	}
-	return result;
+
+	}*/
+
+	// nastavime next free block and its size
+	curr = ((char*)curr) + 2; // get the position of the next free block
+
+	*curr = ((char*)curr) + block_size;	// set the position of the next free block to point to
+	printf("\n%p, %p, %p\n", *curr, (char*)curr + block_size, curr);
+	(void*)curr = (char*)curr + block_size; // set the next blocks size 
+	printf("%\nOMG %p %p\n", curr, (char*)curr + block_size);
+
+	*curr = 50000 + (int)(global) - (int)curr;
+	printf("global - curr %d %d %d", curr, global, (int)curr - (int)global);
+	printf("\n%p, %d\n", curr, *curr);
+
+	/*(void*)curr = (char*)curr + (unsigned short)curr;
+	*curr = NULL;*/
 }
 
-int memory_free(void *ptr) {
+int main() {
 
-}
+	void *ptr = malloc(50);
+	void *next = (char*)ptr + 2;
+	// printf("%p %c, %d, %p\n", ptr, (char*)ptr, sizeof(ptr), next);
 
-int memory_check(void *ptr) {
+	int i = 50;
+	int *curr = (char*)global + 2; // adress to the first free block 
+	*curr = i;
+	printf("curr = %p a global = %p", curr, (char*)global + 2);
+	printf("%d", *((int*)curr));
 
+	unsigned short j = 50;
+	curr = (char*)global + 2 + 50; // adress to the first free block 
+	*curr = j;
+
+	curr = ((char*)curr) + 2;
+	*curr = 0;
+
+	printf("umm%hu", *((int*)curr));
+
+	/*int i = 50;
+	void *pointer;
+	pointer = &i;
+	printf("%d", *((int*)pointer));*/
+	memory_alloc(4);
+	memory_alloc(4);
+	memory_alloc(4);
+	memory_alloc(4);
+
+
+	getchar();
 }
